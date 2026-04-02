@@ -20,16 +20,47 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 # 加载环境变量
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "openai:qwen-plus")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 
-if not GROQ_API_KEY or GROQ_API_KEY == "your_groq_api_key_here":
-    raise ValueError(
-        "\n请先在 .env 文件中设置有效的 GROQ_API_KEY\n"
-        "访问 https://console.groq.com/keys 获取免费密钥"
-    )
+PROVIDER_API_KEY_ENV = {
+    "openai": "OPENAI_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "google_genai": "GOOGLE_API_KEY",
+    "google_vertexai": "GOOGLE_API_KEY",
+}
 
-# 初始化模型
-model = init_chat_model("groq:llama-3.3-70b-versatile", api_key=GROQ_API_KEY)
+provider = CHAT_MODEL.split(":", 1)[0]
+MODEL_INIT_KWARGS = {}
+
+if provider == "openai" and "qwen" in CHAT_MODEL.lower():
+    if not DASHSCOPE_API_KEY or DASHSCOPE_API_KEY.startswith("your_"):
+        raise ValueError(
+            "\n请先在 .env 文件中设置有效的 DASHSCOPE_API_KEY\n"
+            "当前默认使用阿里云千问模型（DashScope OpenAI 兼容模式）"
+        )
+
+    MODEL_INIT_KWARGS = {
+        "api_key": DASHSCOPE_API_KEY,
+        "base_url": OPENAI_BASE_URL,
+    }
+else:
+    api_key_env = PROVIDER_API_KEY_ENV.get(provider)
+    api_key_value = os.getenv(api_key_env) if api_key_env else None
+
+    if api_key_env and (not api_key_value or api_key_value.startswith("your_")):
+        raise ValueError(
+            f"\n请先在 .env 文件中设置有效的 {api_key_env}\n"
+            f"当前 CHAT_MODEL={CHAT_MODEL}"
+        )
+
+def create_chat_model(model_name=None, **kwargs):
+    return init_chat_model(model_name or CHAT_MODEL, **MODEL_INIT_KWARGS, **kwargs)
+
+model = create_chat_model()
 
 # ============================================================================
 # 示例 1：最简单的 LLM 调用
@@ -155,8 +186,7 @@ def example_4_model_parameters():
     print("="*70)
 
     # 创建一个温度较低的模型（更确定性）
-    model_deterministic = init_chat_model(
-        "groq:llama-3.3-70b-versatile",
+    model_deterministic = create_chat_model(
         temperature=0.0,  # 最确定性
         max_tokens=100    # 限制输出长度
     )
@@ -174,8 +204,7 @@ def example_4_model_parameters():
     print("\n" + "-"*70)
 
     # 创建一个温度较高的模型（更随机）
-    model_creative = init_chat_model(
-        "groq:llama-3.3-70b-versatile",
+    model_creative = create_chat_model(
         temperature=1.5,  # 更有创造性
         max_tokens=100
     )
@@ -266,18 +295,18 @@ def example_7_multiple_models():
 
     LangChain 1.0 的优势之一是可以轻松切换不同的模型提供商
     只需要修改模型字符串：
-    - "groq:llama-3.3-70b-versatile"
-    - "groq:mixtral-8x7b-32768"
-    - "groq:gemma2-9b-it"
+    - "openai:qwen-plus"
+    - "openai:qwen-turbo"
+    - "openai:qwen-max"
     """
     print("\n" + "="*70)
     print("示例 7：对比不同模型的输出")
     print("="*70)
 
-    # Groq 上可用的不同模型
+    # DashScope 上可用的不同千问模型
     models_to_test = [
-        "groq:llama-3.3-70b-versatile",
-        "groq:mixtral-8x7b-32768",
+        "openai:qwen-plus",
+        "openai:qwen-turbo",
     ]
 
     prompt = "用一句话解释什么是机器学习。"
@@ -288,9 +317,8 @@ def example_7_multiple_models():
             print(f"\n使用模型: {model_name}")
             print("-" * 70)
 
-            # model 已在文件开头通过 get_model() 初始化
-
-            response = model.invoke(prompt)
+            comparison_model = create_chat_model(model_name)
+            response = comparison_model.invoke(prompt)
             print(f"回复: {response.content}")
 
         except Exception as e:

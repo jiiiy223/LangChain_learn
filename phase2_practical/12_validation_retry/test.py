@@ -133,6 +133,6 @@ print("  4. 重试循环逻辑正确")
 
 print("\n注意:")
 print("  要测试 with_retry() 和 with_fallbacks() 需要:")
-print("  1. 确保 GROQ_API_KEY 正确")
+print("  1. 确保当前模型所需的 API Key 已正确配置")
 print("  2. 网络连接正常")
 print("  3. 运行 main.py 查看完整示例")

@@ -257,4 +257,4 @@ print("  3. 混合检索 - 结合两者优势")
 print("  4. RRF 算法 - 融合多个排名")
 
 print("\n运行完整示例:")
-print("  python main.py  # 需要 GROQ_API_KEY")
+print("  python main.py  # 需要 DASHSCOPE_API_KEY 或其他兼容 provider key")
